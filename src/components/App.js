@@ -29,8 +29,8 @@ const center = {
 const options = {
     // styles: mapStyles,
     disableDefaultUI: true,
-    minZoom: 1,
-    maxZoom: 15
+    minZoom: 3,
+    maxZoom: 20
 };
 
 export default function App() {
