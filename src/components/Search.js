@@ -24,7 +24,6 @@ export default function Search({ panTo }) {
     const [value, setValue] = React.useState(null);
     const [inputValue, setInputValue] = React.useState('');
     const [options, setOptions] = React.useState([]);
-    const loaded = React.useRef(false);
 
     const fetch = React.useMemo(
         () =>

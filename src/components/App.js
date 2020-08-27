@@ -1,17 +1,10 @@
 import React from 'react';
 
 import { GoogleMap, useLoadScript, Marker, InfoWindow } from '@react-google-maps/api';
-import { formatRelative } from "date-fns";
 import db from "../firebase";
-
-// custom style
-import mapStyles from "../mapStyles";
 
 import Header from "./Header";
 import Locate from "./Locate";
-import Map from "./Map";
-import Markers from '../Markers';
-
 
 // setup options for google maps
 const libraries = ["places"];
@@ -42,6 +35,7 @@ export default function App() {
 
     // state for keeping the markers and the chosen marker
     const [markers, setMarkers] = React.useState([]);
+    const [displayVideo, setDisplayVideo] = React.useState(false);
     const [selected, setSelected] = React.useState();
     const [isLocated, setLocated] = React.useState(false);
 
@@ -50,21 +44,14 @@ export default function App() {
         mapRef.current = map;
     }, [])
 
-    var panTo = React.useCallback(({ lat, lng }) => {
+    var panTo = React.useCallback(({ lat, lng, zoom = 16 }) => {
         mapRef.current.panTo({ lat, lng });
-        mapRef.current.setZoom(16);
+        if (zoom) {
+            setSelected(null);
+            setDisplayVideo(false);
+            mapRef.current.setZoom(zoom);
+        }
     }, []);
-
-    // const onMapClick = React.useCallback(event => {
-    //     setMarkers(current => [
-    //         ...current,
-    //         {
-    //             lat: event.latLng.lat(),
-    //             lng: event.latLng.lng(),
-    //             time: new Date(),
-    //         },
-    //     ]);
-    // }, []);
 
     if (loadError)
         return "Error loading maps";
@@ -77,7 +64,6 @@ export default function App() {
                 setMarkers((prevMarkers) => [...prevMarkers, { id: doc.id, data: doc.data() }])
             })
         });
-        console.log("hello world");
     }
 
     return <div>
@@ -88,7 +74,6 @@ export default function App() {
             zoom={10}
             center={center}
             options={options}
-            // onClick={onMapClick}
             onLoad={onMapLoad}
             onDragEnd={() => {
                 if (isLocated)
@@ -101,26 +86,42 @@ export default function App() {
                     position={{ lat: parseFloat(marker.data.latitude), lng: parseFloat(marker.data.longitude) }}
                     icon={{
                         url: "/LiveTripMarker.svg",
-                        scaledSize: new window.google.maps.Size(30, 30),
-                        origin: new window.google.maps.Point(0, 0)
+                        scaledSize: new window.google.maps.Size(30, 30)
                     }}
                     onClick={() => {
-                        setSelected(marker);
+                        if (!selected)
+                            setSelected(marker);
+                        else if (selected.id === marker.id) {
+                            setSelected(null);
+                            setDisplayVideo(false);
+                        }
+                        else {
+                            setDisplayVideo(false);
+                            setSelected(marker);
+                        }
                     }}
                 />;
             }
             )}
 
             {selected && (<InfoWindow
-                position={{ lat: selected.lat, lng: selected.lng }}
+                options={{ pixelOffset: new window.google.maps.Size(0, -30) }}
+                position={{ lat: parseFloat(selected.data.latitude), lng: parseFloat(selected.data.longitude) }}
                 onCloseClick={() => {
                     setSelected(null);
+                    setDisplayVideo(false);
                 }}>
-                <div>
+                <div className="info-window" onClick={() => {
+                    panTo({ lat: parseFloat(selected.data.latitude), lng: parseFloat(selected.data.longitude), zoom: null });
+                    setDisplayVideo(true);
+                }}>
                     <h2>{selected.data.name}</h2>
+                    {displayVideo && <video width="320" height="180" controls autoPlay>
+                        <source src={selected.data.videoURL} type="video/mp4" />
+                    </video>}
                 </div>
             </InfoWindow>)}
         </GoogleMap>
 
-    </div>;
+    </div >;
 }
