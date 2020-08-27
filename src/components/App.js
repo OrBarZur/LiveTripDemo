@@ -2,6 +2,7 @@ import React from 'react';
 
 import { GoogleMap, useLoadScript, Marker, InfoWindow } from '@react-google-maps/api';
 import { formatRelative } from "date-fns";
+import db from "../firebase";
 
 // custom style
 import mapStyles from "../mapStyles";
@@ -9,7 +10,8 @@ import mapStyles from "../mapStyles";
 import Header from "./Header";
 import Locate from "./Locate";
 import Map from "./Map";
-import Markers from "./Markers";
+import Markers from '../Markers';
+
 
 // setup options for google maps
 const libraries = ["places"];
@@ -26,7 +28,9 @@ const center = {
 
 const options = {
     // styles: mapStyles,
-    disableDefaultUI: true
+    disableDefaultUI: true,
+    minZoom: 1,
+    maxZoom: 15
 };
 
 export default function App() {
@@ -51,21 +55,30 @@ export default function App() {
         mapRef.current.setZoom(16);
     }, []);
 
-    const onMapClick = React.useCallback(event => {
-        setMarkers(current => [
-            ...current,
-            {
-                lat: event.latLng.lat(),
-                lng: event.latLng.lng(),
-                time: new Date(),
-            },
-        ]);
-    }, []);
+    // const onMapClick = React.useCallback(event => {
+    //     setMarkers(current => [
+    //         ...current,
+    //         {
+    //             lat: event.latLng.lat(),
+    //             lng: event.latLng.lng(),
+    //             time: new Date(),
+    //         },
+    //     ]);
+    // }, []);
 
     if (loadError)
         return "Error loading maps";
     if (!isLoaded)
         return "Loading maps";
+
+    if (markers.length === 0) {
+        db.collection("videos").get().then((querySnapshot) => {
+            querySnapshot.forEach((doc) => {
+                setMarkers((prevMarkers) => [...prevMarkers, { id: doc.id, data: doc.data() }])
+            })
+        });
+        console.log("hello world");
+    }
 
     return <div>
         <Header panTo={panTo} />
@@ -75,27 +88,27 @@ export default function App() {
             zoom={10}
             center={center}
             options={options}
-            onClick={onMapClick}
+            // onClick={onMapClick}
             onLoad={onMapLoad}
-            onCenterChanged={() => {
+            onDragEnd={() => {
                 if (isLocated)
                     setLocated(false);
             }}
         >
-            {markers.map(marker =>
-                <Marker
-                    key={marker.time.toISOString()}
-                    position={{ lat: marker.lat, lng: marker.lng }}
+            {markers.map((marker, index) => {
+                return <Marker
+                    key={index}
+                    position={{ lat: parseFloat(marker.data.latitude), lng: parseFloat(marker.data.longitude) }}
                     icon={{
                         url: "/LiveTripMarker.svg",
                         scaledSize: new window.google.maps.Size(30, 30),
-                        origin: new window.google.maps.Point(0, 0),
-                        anchor: new window.google.maps.Point(15, 15)
+                        origin: new window.google.maps.Point(0, 0)
                     }}
                     onClick={() => {
                         setSelected(marker);
                     }}
-                />
+                />;
+            }
             )}
 
             {selected && (<InfoWindow
@@ -104,11 +117,10 @@ export default function App() {
                     setSelected(null);
                 }}>
                 <div>
-                    <h2>Bear Spotted!</h2>
-                    <p>Spotted {formatRelative(selected.time, new Date())}</p>
+                    <h2>{selected.data.name}</h2>
                 </div>
             </InfoWindow>)}
         </GoogleMap>
 
-    </div >;
+    </div>;
 }
